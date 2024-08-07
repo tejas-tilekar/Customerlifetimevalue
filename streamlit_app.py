@@ -52,8 +52,6 @@ Also, please make sure the columns are in proper format. For reference, you can 
 
 **Note:** Only use "CSV" file.
 """)
-
-# Function to load and process the data
 def load_data(data, days, profit):
     input_data = pd.read_csv(data)
     input_data = pd.DataFrame(input_data.iloc[:, 1:])
@@ -76,17 +74,18 @@ def load_data(data, days, profit):
     # Reset index
     input_data = input_data.reset_index(drop=True)
 
-    # K-Means clustering
-    col = ["predicted_purchases", "expected_avg_sales_", "predicted_clv", "profit_margin"]
-    new_df = input_data[col]
-    
-    # Add check for data size
-    if len(new_df) > 0:
-        k_model = KMeans(n_clusters=4, init="k-means++", max_iter=1000).fit(new_df)
-        labels = k_model.labels_
-        input_data["Labels"] = pd.Series(labels).map({0: "Low", 1: "V_High", 2: "Medium", 3: "High"})
-    else:
-        input_data["Labels"] = "No Data"
+    # Dynamic labeling based on predicted CLV
+    def assign_label(clv):
+        if clv <= input_data["predicted_clv"].quantile(0.25):
+            return "Low"
+        elif clv <= input_data["predicted_clv"].quantile(0.5):
+            return "Medium"
+        elif clv <= input_data["predicted_clv"].quantile(0.75):
+            return "High"
+        else:
+            return "V_High"
+
+    input_data["Labels"] = input_data["predicted_clv"].apply(assign_label)
 
     # Display the input data
     st.write(input_data)
@@ -116,7 +115,6 @@ def load_data(data, days, profit):
         st.write("Successfully Downloaded!!! Please Check Your Default Download Location... :smile:")
         return input_data.to_csv("customer_lifetime_prediction_result.csv")
 
-# Call the function if data is uploaded
 if data is not None:
     st.markdown("""
     ## Customer Lifetime Prediction Result :bar_chart:
